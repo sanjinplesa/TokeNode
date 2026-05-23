@@ -1,5 +1,5 @@
 import {
-  tailwindColor,
+  colorRamp,
   tailwindOpacity,
   tailwindRadius,
   tailwindSpacing,
@@ -7,7 +7,7 @@ import {
 import type { Preset } from "./types";
 
 export const PRESETS: Preset[] = [
-  tailwindColor,
+  colorRamp,
   tailwindSpacing,
   tailwindRadius,
   tailwindOpacity,

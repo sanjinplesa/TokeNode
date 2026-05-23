@@ -3,7 +3,6 @@ import {
   Background,
   ConnectionMode,
   Controls,
-  MiniMap,
   Panel,
   ReactFlow,
   applyNodeChanges,
@@ -16,8 +15,10 @@ import {
   useReactFlow,
   useViewport,
 } from "@xyflow/react";
+import { LAYER_X } from "../lib/layout";
 import { useGraphStore } from "../store/graphStore";
 import type { TokenLayer } from "../types/tokens";
+import { AlignmentPanel } from "./AlignmentPanel";
 import { ComponentNode } from "./nodes/ComponentNode";
 import { PrimitiveNode } from "./nodes/PrimitiveNode";
 import { SemanticNode } from "./nodes/SemanticNode";
@@ -57,11 +58,31 @@ function ZoomIndicator() {
   );
 }
 
-const LAYER_X: Record<TokenLayer, number> = {
-  primitive: 0,
-  semantic: 480,
-  component: 960,
-};
+const SNAP_THRESHOLD = 14;
+
+function snapToNearest(
+  selfId: string,
+  position: { x: number; y: number },
+  tokens: Record<string, { position?: { x: number; y: number } }>
+): { x: number; y: number } {
+  let { x, y } = position;
+  let bestDx = SNAP_THRESHOLD;
+  let bestDy = SNAP_THRESHOLD;
+  for (const [id, t] of Object.entries(tokens)) {
+    if (id === selfId || !t.position) continue;
+    const dx = Math.abs(t.position.x - position.x);
+    if (dx < bestDx) {
+      bestDx = dx;
+      x = t.position.x;
+    }
+    const dy = Math.abs(t.position.y - position.y);
+    if (dy < bestDy) {
+      bestDy = dy;
+      y = t.position.y;
+    }
+  }
+  return { x, y };
+}
 
 type TokenNodeData = { tokenId: string };
 
@@ -73,6 +94,9 @@ export function Canvas() {
   const updatePosition = useGraphStore((s) => s.updatePosition);
   const selectToken = useGraphStore((s) => s.selectToken);
   const deleteToken = useGraphStore((s) => s.deleteToken);
+  const duplicateToken = useGraphStore((s) => s.duplicateToken);
+  const undo = useGraphStore((s) => s.undo);
+  const redo = useGraphStore((s) => s.redo);
 
   const [rfNodes, setRfNodes, onNodesChangeInternal] =
     useNodesState<Node<TokenNodeData>>([]);
@@ -121,7 +145,12 @@ export function Canvas() {
           change.dragging === false &&
           change.position
         ) {
-          updatePosition(change.id, change.position);
+          const snapped = snapToNearest(
+            change.id,
+            change.position,
+            useGraphStore.getState().graph.tokens
+          );
+          updatePosition(change.id, snapped);
         }
       }
     },
@@ -164,6 +193,46 @@ export function Canvas() {
 
   const onPaneClick = useCallback(() => selectToken(null), [selectToken]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (isInput) return;
+
+      const cmd = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (cmd && key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (cmd && key === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if (cmd && key === "d" && selectedTokenId) {
+        e.preventDefault();
+        duplicateToken(selectedTokenId);
+        return;
+      }
+      if (!cmd && (e.key === "Backspace" || e.key === "Delete") && selectedTokenId) {
+        e.preventDefault();
+        deleteToken(selectedTokenId);
+        return;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedTokenId, duplicateToken, deleteToken, undo, redo]);
+
   // Surface applyNodeChanges so it's tree-shaken-friendly even if unused directly.
   void applyNodeChanges;
 
@@ -184,11 +253,14 @@ export function Canvas() {
       defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       minZoom={0.1}
       maxZoom={2}
+      selectionOnDrag
+      panOnDrag={[1, 2]}
+      panActivationKeyCode="Space"
     >
       <Background gap={24} color="var(--color-canvas-grid)" />
       <Controls />
-      <MiniMap pannable zoomable />
       <ZoomIndicator />
+      <AlignmentPanel />
     </ReactFlow>
   );
 }

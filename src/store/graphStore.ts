@@ -9,6 +9,10 @@ import type {
 import { validateEdge } from "../lib/validation";
 import { resolveValue } from "../lib/resolve";
 import { extractReferences, formatName } from "../lib/ids";
+import { LAYER_X } from "../lib/layout";
+
+const MAX_HISTORY = 50;
+let skipHistory = false;
 
 type CategoryDefault = { value: TokenValue; $type: string };
 
@@ -61,6 +65,10 @@ interface GraphStore {
   selectedTokenId: string | null;
   activeThemeId: string | null;
   activeLayer: TokenLayer;
+  history: TokenGraph[];
+  future: TokenGraph[];
+  undo: () => void;
+  redo: () => void;
 
   load: (graph: TokenGraph) => void;
   reset: () => void;
@@ -75,6 +83,7 @@ interface GraphStore {
   createTheme: (name: string) => string;
   updateToken: (id: string, patch: Partial<TokenNode>) => void;
   deleteToken: (id: string) => void;
+  duplicateToken: (id: string) => string | null;
 
   addReference: (sourceId: string, targetId: string) => { ok: boolean; error?: string };
   removeReference: (sourceId: string, targetId: string) => void;
@@ -83,6 +92,8 @@ interface GraphStore {
   selectToken: (id: string | null) => void;
   setActiveTheme: (id: string | null) => void;
   setActiveLayer: (layer: TokenLayer) => void;
+  alignLayer: (layer: TokenLayer) => void;
+  distributeLayer: (layer: TokenLayer, gap: number) => void;
 
   resolved: (id: string) => string;
 }
@@ -96,6 +107,32 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   selectedTokenId: null,
   activeThemeId: null,
   activeLayer: "primitive",
+  history: [],
+  future: [],
+
+  undo: () => {
+    const s = get();
+    if (s.history.length === 0) return;
+    skipHistory = true;
+    set({
+      graph: s.history[s.history.length - 1],
+      history: s.history.slice(0, -1),
+      future: [...s.future, s.graph].slice(-MAX_HISTORY),
+    });
+    skipHistory = false;
+  },
+
+  redo: () => {
+    const s = get();
+    if (s.future.length === 0) return;
+    skipHistory = true;
+    set({
+      graph: s.future[s.future.length - 1],
+      history: [...s.history, s.graph].slice(-MAX_HISTORY),
+      future: s.future.slice(0, -1),
+    });
+    skipHistory = false;
+  },
 
   load: (graph) => set({ graph, selectedTokenId: null }),
   reset: () => set({ graph: emptyGraph(), selectedTokenId: null }),
@@ -254,6 +291,44 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       };
     }),
 
+  duplicateToken: (id) => {
+    const state = get();
+    const source = state.graph.tokens[id];
+    if (!source) return null;
+    let n = 1;
+    let newId = `${source.id}-copy`;
+    while (state.graph.tokens[newId]) {
+      n++;
+      newId = `${source.id}-copy-${n}`;
+    }
+    const newToken: TokenNode = {
+      ...source,
+      id: newId,
+      name: `${source.name} (copy)`,
+      references: [...source.references],
+      referencedBy: [],
+      position: source.position
+        ? { x: source.position.x + 32, y: source.position.y + 32 }
+        : undefined,
+    };
+    set((s) => {
+      const tokens: Record<string, TokenNode> = { ...s.graph.tokens, [newId]: newToken };
+      for (const ref of newToken.references) {
+        if (tokens[ref]) {
+          tokens[ref] = {
+            ...tokens[ref],
+            referencedBy: Array.from(new Set([...tokens[ref].referencedBy, newId])),
+          };
+        }
+      }
+      return {
+        graph: withMetaTouched({ ...s.graph, tokens }),
+        selectedTokenId: newId,
+      };
+    });
+    return newId;
+  },
+
   addReference: (sourceId, targetId) => {
     const s = get();
     const result = validateEdge(s.graph, sourceId, targetId);
@@ -311,7 +386,8 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       return { graph: withMetaTouched({ ...s.graph, tokens }) };
     }),
 
-  updatePosition: (id, position) =>
+  updatePosition: (id, position) => {
+    skipHistory = true;
     set((s) => {
       const token = s.graph.tokens[id];
       if (!token) return s;
@@ -321,14 +397,60 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           tokens: { ...s.graph.tokens, [id]: { ...token, position } },
         },
       };
-    }),
+    });
+    skipHistory = false;
+  },
 
   selectToken: (id) => set({ selectedTokenId: id }),
   setActiveTheme: (id) => set({ activeThemeId: id }),
   setActiveLayer: (layer) => set({ activeLayer: layer }),
+
+  alignLayer: (layer) =>
+    set((s) => {
+      const tokens: Record<string, TokenNode> = { ...s.graph.tokens };
+      let touched = false;
+      for (const id in tokens) {
+        if (tokens[id].layer !== layer) continue;
+        const y = tokens[id].position?.y ?? 0;
+        tokens[id] = { ...tokens[id], position: { x: LAYER_X[layer], y } };
+        touched = true;
+      }
+      if (!touched) return s;
+      return { graph: withMetaTouched({ ...s.graph, tokens }) };
+    }),
+
+  distributeLayer: (layer, gap) =>
+    set((s) => {
+      const tokens: Record<string, TokenNode> = { ...s.graph.tokens };
+      const layerTokens = Object.values(tokens)
+        .filter((t) => t.layer === layer)
+        .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0));
+      if (layerTokens.length < 2) return s;
+      const startY = layerTokens[0].position?.y ?? 0;
+      layerTokens.forEach((token, i) => {
+        tokens[token.id] = {
+          ...token,
+          position: {
+            x: token.position?.x ?? LAYER_X[layer],
+            y: startY + i * gap,
+          },
+        };
+      });
+      return { graph: withMetaTouched({ ...s.graph, tokens }) };
+    }),
 
   resolved: (id) => {
     const s = get();
     return resolveValue(s.graph, id, s.activeThemeId ?? undefined);
   },
 }));
+
+// Record graph snapshots into history for undo/redo
+useGraphStore.subscribe((state, prevState) => {
+  if (skipHistory) return;
+  if (state.graph === prevState.graph) return;
+  useGraphStore.setState((s) => ({
+    history: [...s.history, prevState.graph].slice(-MAX_HISTORY),
+    future: [],
+  }));
+});

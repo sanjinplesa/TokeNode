@@ -11,15 +11,6 @@ type CategoryDef = {
   icon: React.ReactNode;
 };
 
-type StructureKey = "group" | "alias" | "collection" | "mode";
-
-type StructureDef = {
-  key: StructureKey;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-};
-
 const CATEGORIES: CategoryDef[] = [
   { key: "color", label: "Color", description: "Color tokens", icon: <ColorIcon /> },
   { key: "typography", label: "Typography", description: "Text styles", icon: <TypeIcon /> },
@@ -30,17 +21,8 @@ const CATEGORIES: CategoryDef[] = [
   { key: "motion", label: "Motion", description: "Duration & easing", icon: <MotionIcon /> },
 ];
 
-const STRUCTURE: StructureDef[] = [
-  { key: "group", label: "Group", description: "Organize tokens", icon: <FolderIcon /> },
-  { key: "alias", label: "Alias", description: "Reference another token", icon: <LinkIcon /> },
-  { key: "collection", label: "Collection", description: "Create a token set", icon: <LayersIcon /> },
-  { key: "mode", label: "Mode", description: "Add a mode (Light, Dark…)", icon: <ModeIcon /> },
-];
-
 export function FloatingToolbar() {
   const createToken = useGraphStore((s) => s.createToken);
-  const createGroup = useGraphStore((s) => s.createGroup);
-  const createTheme = useGraphStore((s) => s.createTheme);
   const layer = useGraphStore((s) => s.activeLayer);
   const rf = useReactFlow();
   const [rampOpen, setRampOpen] = useState(false);
@@ -56,25 +38,6 @@ export function FloatingToolbar() {
       });
     }
     createToken(category, layer, pos);
-  };
-
-  const onStructure = (key: StructureKey) => {
-    switch (key) {
-      case "group": {
-        const name = prompt("Group name?");
-        if (name && name.trim()) createGroup(name);
-        break;
-      }
-      case "mode": {
-        const name = prompt("Mode name (e.g. Light, Dark, High Contrast)?");
-        if (name && name.trim()) createTheme(name);
-        break;
-      }
-      case "alias":
-      case "collection":
-        alert(`"${key}" — coming soon`);
-        break;
-    }
   };
 
   return (
@@ -101,18 +64,6 @@ export function FloatingToolbar() {
         </IconButton>
       ))}
 
-      <div className="h-px w-7 bg-[var(--color-panel-border)] my-1" />
-
-      {STRUCTURE.map((s) => (
-        <IconButton
-          key={s.key}
-          label={s.label}
-          description={s.description}
-          onClick={() => onStructure(s.key)}
-        >
-          {s.icon}
-        </IconButton>
-      ))}
     </div>
     {rampOpen && <RampDialog onClose={() => setRampOpen(false)} />}
     </>
@@ -155,26 +106,6 @@ function RampIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 16h2v-3h3v-3h3V7h3V4h3" />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-      <path d="M8.5 11.5L11.5 8.5" />
-      <path d="M9.5 5.5h3.5a3 3 0 0 1 0 6h-1.5" />
-      <path d="M10.5 14.5H7a3 3 0 0 1 0-6h1.5" />
-    </svg>
-  );
-}
-
-function LayersIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-      <path d="M10 3l7 3.5L10 10 3 6.5 10 3z" />
-      <path d="M3 10l7 3.5L17 10" />
-      <path d="M3 13.5L10 17l7-3.5" opacity="0.55" />
     </svg>
   );
 }
@@ -239,20 +170,3 @@ function MotionIcon() {
   );
 }
 
-function FolderIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
-      <path d="M3 6.5a1 1 0 0 1 1-1h3l2 2h7a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5z" />
-    </svg>
-  );
-}
-
-function ModeIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <circle cx="7.5" cy="10" r="3" />
-      <path d="M12 6.5a3.5 3.5 0 0 1 0 7" />
-      <path d="M7.5 4.5v1M7.5 14.5v1M3.5 10h1M11.5 10h1" />
-    </svg>
-  );
-}

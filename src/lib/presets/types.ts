@@ -3,11 +3,12 @@ import type { TokenCategory, TokenValue } from "../../types/tokens";
 export interface PresetInput {
   key: string;
   label: string;
-  type: "text" | "number";
+  type: "text" | "number" | "select" | "color";
   default?: string | number;
   min?: number;
   max?: number;
   step?: number;
+  options?: { value: string; label: string }[];
 }
 
 export interface GeneratedToken {

@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useGraphStore } from "../../store/graphStore";
 import { CATEGORY_META } from "./categoryMeta";
+import { NodeActions } from "./NodeActions";
 
 export function PrimitiveNode({ data }: NodeProps) {
   const tokenId = (data as { tokenId: string }).tokenId;
@@ -12,6 +13,8 @@ export function PrimitiveNode({ data }: NodeProps) {
   const isColor = token.category === "color";
 
   return (
+    <>
+    <NodeActions tokenId={tokenId} />
     <div
       className="rounded-lg border border-[var(--color-panel-border)] bg-[var(--color-panel)] min-w-[220px] shadow-lg overflow-hidden"
       style={{ borderLeft: `3px solid ${meta.accent}` }}
@@ -50,5 +53,6 @@ export function PrimitiveNode({ data }: NodeProps) {
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
+    </>
   );
 }

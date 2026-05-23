@@ -54,7 +54,7 @@ export function RampDialog({ onClose }: { onClose: () => void }) {
           typeof g.value === "string" ? g.value : JSON.stringify(g.value),
         references: [],
         referencedBy: [],
-        position: { x: LAYER_X_PRIMITIVE, y: startY + i * 130 },
+        position: { x: LAYER_X_PRIMITIVE, y: startY + i * 180 },
         $type: g.$type,
       });
       i++;
@@ -126,23 +126,59 @@ export function RampDialog({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               {preset.inputs.map((input) => (
                 <Field key={input.key} label={input.label}>
-                  <input
-                    type={input.type === "number" ? "number" : "text"}
-                    value={params[input.key] ?? ""}
-                    onChange={(e) =>
-                      setParams((p) => ({
-                        ...p,
-                        [input.key]:
-                          input.type === "number"
-                            ? Number(e.target.value)
-                            : e.target.value,
-                      }))
-                    }
-                    min={input.min}
-                    max={input.max}
-                    step={input.step}
-                    className="w-full text-sm bg-[var(--color-canvas-bg)] border border-[var(--color-panel-border)] rounded px-2 py-1.5 focus:border-[var(--color-accent)] outline-none"
-                  />
+                  {input.type === "select" ? (
+                    <select
+                      value={String(params[input.key] ?? "")}
+                      onChange={(e) =>
+                        setParams((p) => ({ ...p, [input.key]: e.target.value }))
+                      }
+                      className="w-full text-sm bg-[var(--color-canvas-bg)] border border-[var(--color-panel-border)] rounded px-2 py-1.5 focus:border-[var(--color-accent)] outline-none"
+                    >
+                      {(input.options ?? []).map((o) => (
+                        <option key={o.value} value={o.value} className="bg-[var(--color-panel)]">
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : input.type === "color" ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={String(params[input.key] ?? "#000000")}
+                        onChange={(e) =>
+                          setParams((p) => ({ ...p, [input.key]: e.target.value }))
+                        }
+                        className="w-10 h-9 bg-[var(--color-canvas-bg)] border border-[var(--color-panel-border)] rounded cursor-pointer shrink-0 p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={String(params[input.key] ?? "")}
+                        onChange={(e) =>
+                          setParams((p) => ({ ...p, [input.key]: e.target.value }))
+                        }
+                        placeholder="#000000"
+                        className="flex-1 min-w-0 text-sm font-mono bg-[var(--color-canvas-bg)] border border-[var(--color-panel-border)] rounded px-2 py-1.5 focus:border-[var(--color-accent)] outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <input
+                      type={input.type === "number" ? "number" : "text"}
+                      value={params[input.key] ?? ""}
+                      onChange={(e) =>
+                        setParams((p) => ({
+                          ...p,
+                          [input.key]:
+                            input.type === "number"
+                              ? Number(e.target.value)
+                              : e.target.value,
+                        }))
+                      }
+                      min={input.min}
+                      max={input.max}
+                      step={input.step}
+                      className="w-full text-sm bg-[var(--color-canvas-bg)] border border-[var(--color-panel-border)] rounded px-2 py-1.5 focus:border-[var(--color-accent)] outline-none"
+                    />
+                  )}
                 </Field>
               ))}
             </div>

@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useGraphStore } from "../../store/graphStore";
 import { CATEGORY_META } from "./categoryMeta";
+import { NodeActions } from "./NodeActions";
 
 export function SemanticNode({ data }: NodeProps) {
   const tokenId = (data as { tokenId: string }).tokenId;
@@ -13,6 +14,8 @@ export function SemanticNode({ data }: NodeProps) {
   const refTarget = token.references[0];
 
   return (
+    <>
+    <NodeActions tokenId={tokenId} />
     <div
       className="rounded-lg border border-[var(--color-panel-border)] bg-[var(--color-panel)] min-w-[240px] shadow-lg overflow-hidden"
       style={{ borderLeft: `3px solid ${meta.accent}` }}
@@ -57,5 +60,6 @@ export function SemanticNode({ data }: NodeProps) {
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
+    </>
   );
 }

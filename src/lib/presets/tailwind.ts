@@ -1,3 +1,4 @@
+import { formatHex, formatHsl, oklch as toOklch } from "culori";
 import type { Preset } from "./types";
 
 const formatName = (s: string): string =>
@@ -13,39 +14,119 @@ const slugify = (s: string): string =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || "untitled";
 
-export const tailwindColor: Preset = {
-  id: "tailwind-color",
+function formatColor(l: number, c: number, h: number, fmt: string): string {
+  if (fmt === "oklch") return `oklch(${l.toFixed(2)} ${c.toFixed(3)} ${h})`;
+  const color = toOklch({ mode: "oklch", l, c, h });
+  if (fmt === "hex") return formatHex(color) ?? `oklch(${l.toFixed(2)} ${c.toFixed(3)} ${h})`;
+  if (fmt === "hsl") return formatHsl(color) ?? `oklch(${l.toFixed(2)} ${c.toFixed(3)} ${h})`;
+  return `oklch(${l.toFixed(2)} ${c.toFixed(3)} ${h})`;
+}
+
+type StepDef = { step: string; l: number; cMul: number };
+
+const COLOR_STRUCTURES: Record<string, StepDef[]> = {
+  tailwind: [
+    { step: "50",  l: 0.97, cMul: 0.30 },
+    { step: "100", l: 0.93, cMul: 0.45 },
+    { step: "200", l: 0.87, cMul: 0.60 },
+    { step: "300", l: 0.79, cMul: 0.75 },
+    { step: "400", l: 0.70, cMul: 0.90 },
+    { step: "500", l: 0.61, cMul: 1.00 },
+    { step: "600", l: 0.53, cMul: 0.95 },
+    { step: "700", l: 0.45, cMul: 0.85 },
+    { step: "800", l: 0.37, cMul: 0.70 },
+    { step: "900", l: 0.27, cMul: 0.50 },
+    { step: "950", l: 0.18, cMul: 0.35 },
+  ],
+  material: [
+    { step: "50",  l: 0.97, cMul: 0.25 },
+    { step: "100", l: 0.93, cMul: 0.40 },
+    { step: "200", l: 0.86, cMul: 0.55 },
+    { step: "300", l: 0.78, cMul: 0.70 },
+    { step: "400", l: 0.69, cMul: 0.85 },
+    { step: "500", l: 0.60, cMul: 1.00 },
+    { step: "600", l: 0.52, cMul: 0.95 },
+    { step: "700", l: 0.44, cMul: 0.85 },
+    { step: "800", l: 0.35, cMul: 0.70 },
+    { step: "900", l: 0.25, cMul: 0.50 },
+  ],
+  m3tonal: [
+    { step: "0",   l: 0.05, cMul: 0.10 },
+    { step: "10",  l: 0.15, cMul: 0.30 },
+    { step: "20",  l: 0.25, cMul: 0.45 },
+    { step: "30",  l: 0.35, cMul: 0.60 },
+    { step: "40",  l: 0.45, cMul: 0.75 },
+    { step: "50",  l: 0.55, cMul: 0.90 },
+    { step: "60",  l: 0.65, cMul: 1.00 },
+    { step: "70",  l: 0.75, cMul: 0.90 },
+    { step: "80",  l: 0.85, cMul: 0.70 },
+    { step: "90",  l: 0.92, cMul: 0.50 },
+    { step: "95",  l: 0.96, cMul: 0.30 },
+    { step: "99",  l: 0.99, cMul: 0.15 },
+    { step: "100", l: 1.00, cMul: 0.05 },
+  ],
+  radix: [
+    { step: "1",  l: 0.99, cMul: 0.10 },
+    { step: "2",  l: 0.97, cMul: 0.20 },
+    { step: "3",  l: 0.94, cMul: 0.35 },
+    { step: "4",  l: 0.91, cMul: 0.50 },
+    { step: "5",  l: 0.87, cMul: 0.65 },
+    { step: "6",  l: 0.81, cMul: 0.80 },
+    { step: "7",  l: 0.74, cMul: 0.90 },
+    { step: "8",  l: 0.65, cMul: 1.00 },
+    { step: "9",  l: 0.55, cMul: 1.00 },
+    { step: "10", l: 0.50, cMul: 0.90 },
+    { step: "11", l: 0.40, cMul: 0.75 },
+    { step: "12", l: 0.25, cMul: 0.55 },
+  ],
+};
+
+export const colorRamp: Preset = {
+  id: "color-ramp",
   name: "Color ramp",
-  family: "Tailwind",
+  family: "Generators",
   category: "color",
-  description: "11-step OKLCH color scale (50 → 950)",
+  description: "Generate a color scale in a popular design system structure",
   inputs: [
     { key: "name", label: "Color name", type: "text", default: "brand" },
-    { key: "hue", label: "Hue (0–360)", type: "number", default: 250, min: 0, max: 360, step: 1 },
-    { key: "chroma", label: "Peak chroma (0–0.4)", type: "number", default: 0.18, min: 0, max: 0.4, step: 0.01 },
+    {
+      key: "structure",
+      label: "Structure",
+      type: "select",
+      default: "tailwind",
+      options: [
+        { value: "tailwind", label: "Tailwind (50 → 950)" },
+        { value: "material", label: "Material (50 → 900)" },
+        { value: "m3tonal", label: "Material 3 tonal (0 → 100)" },
+        { value: "radix", label: "Radix (1 → 12)" },
+      ],
+    },
+    { key: "baseColor", label: "Base color", type: "color", default: "#3b82f6" },
+    {
+      key: "format",
+      label: "Output format",
+      type: "select",
+      default: "oklch",
+      options: [
+        { value: "oklch", label: "OKLCH" },
+        { value: "hex", label: "HEX" },
+        { value: "hsl", label: "HSL" },
+      ],
+    },
   ],
-  generate: ({ name, hue, chroma }) => {
+  generate: ({ name, structure, baseColor, format }) => {
     const slug = slugify(String(name));
     const display = formatName(slug);
-    const h = Number(hue) || 0;
-    const c = Number(chroma) || 0;
-    const STEPS = [
-      { step: "50",  l: 0.97, cMul: 0.30 },
-      { step: "100", l: 0.93, cMul: 0.45 },
-      { step: "200", l: 0.87, cMul: 0.60 },
-      { step: "300", l: 0.79, cMul: 0.75 },
-      { step: "400", l: 0.70, cMul: 0.90 },
-      { step: "500", l: 0.61, cMul: 1.00 },
-      { step: "600", l: 0.53, cMul: 0.95 },
-      { step: "700", l: 0.45, cMul: 0.85 },
-      { step: "800", l: 0.37, cMul: 0.70 },
-      { step: "900", l: 0.27, cMul: 0.50 },
-      { step: "950", l: 0.18, cMul: 0.35 },
-    ];
+    const fmt = String(format ?? "oklch");
+    const parsed = toOklch(String(baseColor ?? "#3b82f6"));
+    const h = parsed?.h ?? 250;
+    const c = parsed?.c ?? 0.18;
+    const structureKey = String(structure ?? "tailwind");
+    const STEPS = COLOR_STRUCTURES[structureKey] ?? COLOR_STRUCTURES.tailwind;
     return STEPS.map(({ step, l, cMul }) => ({
       id: `color.${slug}.${step}`,
       name: `${display} ${step}`,
-      value: `oklch(${l.toFixed(2)} ${(c * cMul).toFixed(3)} ${h})`,
+      value: formatColor(l, c * cMul, h, fmt),
       $type: "color",
       category: "color",
     }));
