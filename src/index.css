@@ -1,0 +1,68 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+@theme {
+  --color-canvas-bg: oklch(0.18 0 0);
+  --color-canvas-grid: oklch(0.27 0 0);
+  --color-panel: oklch(0.22 0 0);
+  --color-panel-border: oklch(0.32 0 0);
+  --color-text-primary: oklch(0.96 0 0);
+  --color-text-muted: oklch(0.65 0 0);
+  --color-accent: oklch(0.72 0.18 240);
+  --color-layer-primitive: oklch(0.74 0.16 35);
+  --color-layer-semantic: oklch(0.74 0.16 180);
+  --color-layer-component: oklch(0.74 0.17 290);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-canvas-bg);
+  color: var(--color-text-primary);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+}
+
+.react-flow {
+  background: var(--color-canvas-bg);
+}
+
+.react-flow__node {
+  font-size: 13px;
+}
+
+.react-flow__node.selected > div {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.react-flow__controls,
+.react-flow__minimap {
+  background: var(--color-panel) !important;
+  border: 1px solid var(--color-panel-border) !important;
+}
+
+.react-flow__controls-button {
+  background: var(--color-panel) !important;
+  border-color: var(--color-panel-border) !important;
+  color: var(--color-text-primary) !important;
+  fill: var(--color-text-primary) !important;
+}
+
+.react-flow__edge-path {
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--color-accent);
+}
+
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-panel);
+}
